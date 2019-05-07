@@ -4,13 +4,16 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
+import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.objdetect.CascadeClassifier;
 
 import android.Manifest;
 import android.app.Activity;
@@ -39,6 +42,9 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     private boolean                 mIsJavaCamera = true;
     private MenuItem                mItemSwitchCamera = null;
 
+    private CascadeClassifier face_cascade;
+    private CascadeClassifier eye_cascade;
+
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
@@ -53,6 +59,8 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
                     super.onManagerConnected(status);
                 } break;
             }
+            face_cascade = new CascadeClassifier(initAssetFile("haarcascade_frontalface_default.xml"));
+            eye_cascade = new CascadeClassifier(initAssetFile("haarcascade_eye.xml"));
         }
     };
 
@@ -124,12 +132,41 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         return col;
         */
 
-        Mat gray = inputFrame.gray();
-        Mat col  = inputFrame.rgba();
+//        Mat gray = inputFrame.gray();
+//        Mat col  = inputFrame.rgba();
+//
+//        Mat tmp = gray.clone();
+//        Imgproc.Canny(gray, tmp, 80, 100);
+//        Imgproc.cvtColor(tmp, col, Imgproc.COLOR_GRAY2RGBA, 4);
 
-        Mat tmp = gray.clone();
-        Imgproc.Canny(gray, tmp, 80, 100);
-        Imgproc.cvtColor(tmp, col, Imgproc.COLOR_GRAY2RGBA, 4);
+        Mat init_gray = inputFrame.gray();
+        Mat init_col = inputFrame.rgba();
+
+        Mat gray = new Mat();
+        Mat col = new Mat();
+
+        Core.flip(init_gray, gray ,1);
+        Core.flip(init_col, col, 1);
+
+//        Mat tmp = gray.clone();
+        Imgproc.Canny(gray, gray.clone(), 80, 100);
+        Imgproc.cvtColor(gray.clone(), col, Imgproc.COLOR_GRAY2RGBA, 4);
+
+        //
+        MatOfRect face_detector = new MatOfRect();
+        face_cascade.detectMultiScale(gray, face_detector);
+
+        Log.e(TAG, "onCameraFrame: " + face_detector );
+        // Draw a bounding box around each face.
+        for (Rect rect : face_detector.toArray()) {
+            // Imgproc.rectangle(col, new Point(rect.x, rect.y), new Point(rect.x
+            //         + rect.width, rect.y + rect.height), new Scalar(0, 255, 0), 10);
+            float x = rect.x + rect.width/2;
+            float y = rect.y + rect.height/2;
+            int radius = rect.width/10;
+            Point center_point = new Point(x,y);
+            Imgproc.circle(col, center_point, radius,  new Scalar(255,0,0), -1);
+        }
 
         return col;
     }
